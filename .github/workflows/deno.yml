@@ -1,0 +1,43 @@
+name: Deno
+
+permissions: {}
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deno-v1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: { submodules: true }
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v1.x
+      - run: deno --allow-env src/public-api.ts
+
+  deno-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: { submodules: true }
+      - uses: denoland/setup-deno@v2
+      - name: Sync version to jsr.jsonc
+        run: |
+          node -e '
+            const fs = require("fs");
+            const pkgVersion = require("./package.json").version;
+            let text = fs.readFileSync("jsr.jsonc", "utf8");
+
+            text = text.replace(
+              /(?<="version"\s*:\s*")[^"]+/,
+              pkgVersion
+            );
+
+            fs.writeFileSync("jsr.jsonc", text);
+          '
+      - run: deno --allow-env src/public-api.ts
+      - run: deno publish --no-check --dry-run --allow-dirty
